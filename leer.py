@@ -52,8 +52,7 @@ def extraer(html, fecha):
     return out
 
 def main():
-    hoy = datetime.date.today()  # el reloj de GitHub es UTC; se corrige abajo
-    hoy = (datetime.datetime.utcnow() - datetime.timedelta(hours=4)).date()  # hora de RD
+    hoy = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=4)).date()  # hora de RD
     nuevos = {}
     errores = 0
     for d in range(DIAS):
@@ -66,7 +65,15 @@ def main():
                 errores += 1
                 print("No pude leer", base, q, e, file=sys.stderr)
                 continue
-            for f, s, a, b, c in extraer(html, dia.isoformat()):
+            filas = extraer(html, dia.isoformat())
+            sopa = BeautifulSoup(html, "html.parser")
+            print("DIAG", base, q, "bytes:", len(html), "game-block:", len(sopa.find_all("div", class_="game-block")),
+                  "título:", (sopa.title.get_text().strip() if sopa.title else "-"), "leídos:", len(filas))
+            if not filas and d == 0:
+                txt = re.sub(r"\s+", " ", sopa.get_text(" "))[:500]
+                print("DIAG texto:", txt)
+                print("DIAG clases:", sorted({c for t in sopa.find_all(True) for c in (t.get("class") or [])})[:80])
+            for f, s, a, b, c in filas:
                 nuevos[(f, s)] = (a, b, c)
             time.sleep(1)
     if not nuevos and errores:
